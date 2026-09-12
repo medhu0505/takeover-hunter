@@ -163,10 +163,10 @@ def enumerate_subdomains_stream(target, q):
             args=(f"amass enum -passive -d {target} -timeout 60", "amass", tool_q)))
     if cmd_exists("gau"):
         tools.append(threading.Thread(target=_run_tool,
-            args=(f"gau --subs {target} 2>/dev/null | grep -oP '(?<=://)([a-zA-Z0-9.*-]+\.{re.escape(target)})' | sort -u", "gau", tool_q)))
+            args=(rf"gau --subs {target} 2>/dev/null | grep -oP '(?<=://)([a-zA-Z0-9.*-]+\.{re.escape(target)})' | sort -u", "gau", tool_q)))
     if cmd_exists("waybackurls"):
         tools.append(threading.Thread(target=_run_tool,
-            args=(f"echo {target} | waybackurls 2>/dev/null | grep -oP '(?<=://)([a-zA-Z0-9.*-]+\.{re.escape(target)})' | sort -u", "waybackurls", tool_q)))
+            args=(rf"echo {target} | waybackurls 2>/dev/null | grep -oP '(?<=://)([a-zA-Z0-9.*-]+\.{re.escape(target)})' | sort -u", "waybackurls", tool_q)))
     if not tools:
         q.put(("log", "warn", "⚠ No tools found. Install: subfinder, assetfinder, amass, gau, waybackurls"))
     for t in tools:
@@ -523,7 +523,7 @@ def js_recon_worker(target, subdomains, q):
         q.put(("log", "info", "waybackurls: mining archive..."))
         try:
             result = subprocess.run(
-                f"echo {target} | waybackurls 2>/dev/null | grep '\.js' | sort -u",
+                rf"echo {target} | waybackurls 2>/dev/null | grep '\.js' | sort -u",
                 shell=True, capture_output=True, text=True, timeout=60
             )
             before = len(js_urls)
@@ -539,7 +539,7 @@ def js_recon_worker(target, subdomains, q):
         q.put(("log", "info", "gau: mining archives..."))
         try:
             result = subprocess.run(
-                f"gau {target} 2>/dev/null | grep '\.js' | sort -u",
+                rf"gau {target} 2>/dev/null | grep '\.js' | sort -u",
                 shell=True, capture_output=True, text=True, timeout=60
             )
             before = len(js_urls)
