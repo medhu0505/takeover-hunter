@@ -1,21 +1,51 @@
-MIT License
+Takeover Hunter — Proprietary Evaluation License
+Copyright (c) 2026 Medhansh Sharma. All rights reserved.
 
-Copyright (c) 2026 Medhansh Sharma
+1. OWNERSHIP
+   This software and its associated documentation (the "Software") are the
+   proprietary intellectual property of the copyright holder. Except for the
+   limited rights expressly granted below, all rights are reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+2. EVALUATION LICENSE
+   Subject to these terms, the copyright holder grants a non-exclusive,
+   non-transferable, revocable license to view, run, and evaluate the Software
+   solely for the purpose of assessing it for potential acquisition or
+   licensing. No other use is permitted.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+3. RESTRICTIONS
+   Without the prior written consent of the copyright holder, you may not:
+   (a) use the Software in production or for any commercial purpose;
+   (b) copy, redistribute, sublicense, sell, or publish the Software or any
+       derivative of it;
+   (c) remove or alter any copyright, license, or attribution notice.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+4. ACQUISITION / TRANSFER
+   Full rights to the Software — including ownership, commercial use, and
+   redistribution — are available only by a separate written agreement
+   (e.g., an asset purchase or exclusive license agreement) executed with the
+   copyright holder. That agreement, once executed, supersedes this license to
+   the extent of any conflict.
+
+5. PRIOR PUBLICATION NOTICE
+   Version 1.x of this project was previously published under the MIT License.
+   That historical grant, as to those specific published versions, is not
+   revoked by this license and is disclosed for the avoidance of doubt in
+   docs/ACQUISITION_BRIEF.md. This license governs the version 2.x codebase and
+   all subsequent development, which are offered for acquisition as described
+   above.
+
+6. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+   OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+7. AUTHORIZED USE
+   The Software performs active network reconnaissance. You are solely
+   responsible for ensuring you have explicit authorization to scan any target.
+   See SECURITY.md.
+
+For licensing or acquisition inquiries, contact the copyright holder.

@@ -909,15 +909,29 @@ async function startEnum() {
 }
 
 // ─── PROVIDER FILTER ───────────────────────────────────────────────────────
-const PROVIDERS = [
-  "Heroku","GitHub Pages","AWS S3","AWS CloudFront","AWS ELB",
-  "Azure TM","Azure Web","Fastly","Netlify","Vercel","Webflow","Pantheon",
-  "Ghost","Shopify","Tumblr","WordPress","Zendesk","Bitbucket","Seismic","Marketo"
+// Static fallback — the live list is fetched from /api/providers so the
+// filter always mirrors the backend fingerprint database.
+let PROVIDERS = [
+  "AWS CloudFront","AWS ELB","AWS S3","Azure Traffic Manager","Azure Web",
+  "Bitbucket","Cargo","Fastly","Ghost","GitHub Pages","Helpscout","Heroku",
+  "Marketo","Netlify","Pantheon","Readme.io","Seismic","Shopify","Statuspage",
+  "Surge.sh","Tumblr","Unbounce","Vercel","Webflow","WordPress","Zendesk"
 ];
 const selectedProviders = new Set();
 
-function initProviderFilter() {
+async function initProviderFilter() {
+  try {
+    const res = await fetch('/api/providers');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.providers) && data.providers.length) {
+        PROVIDERS = data.providers;
+      }
+    }
+  } catch (_) { /* offline / auth-gated: fall back to the static list */ }
+
   const list = document.getElementById('filterList');
+  list.innerHTML = '';
   PROVIDERS.forEach(p => {
     const item = document.createElement('div');
     item.className = 'filter-item';

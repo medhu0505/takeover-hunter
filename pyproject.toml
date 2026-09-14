@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "takeover-hunter"
+version = "2.0.0"
+description = "Subdomain takeover detection and reporting engine (Flask + SSE)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Medhansh Sharma" }]
+keywords = ["security", "subdomain-takeover", "recon", "bug-bounty", "dns"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Framework :: Flask",
+    "Topic :: Security",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "Flask>=3.0,<4.0",
+    "dnspython>=2.6,<3.0",
+    "requests>=2.31,<3.0",
+    "urllib3>=2.0,<3.0",
+    "gunicorn>=21.2,<24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<10.0",
+    "pytest-cov>=4.1,<7.0",
+    "pyflakes>=3.1,<4.0",
+]
+
+[tool.setuptools]
+packages = ["takeover_hunter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["takeover_hunter"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
