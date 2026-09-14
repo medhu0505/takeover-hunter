@@ -128,10 +128,19 @@ the license is now proprietary (enables exclusivity), and it is documented and
 deployable (removes onboarding cost). What still caps it: no revenue, no users,
 the prior MIT history, and a category with capable free alternatives.
 
-**Recommendation.** As a straight IP sale, anchor at **$8,000–$10,000** and
-expect to clear in the mid-four to low-five figures depending on buyer type.
-The larger prize is not the code sale; it is monetizing to a small paying base
-first, then selling on a multiple, or retaining it as a portfolio/lead asset.
+**Recommendation (internal).** List a single **asking price of $12,000**. That
+is the opening anchor, not the walk-away: expect to clear in the $8,000–$10,000
+range with an ordinary buyer, and at or near full with a strategic one. **Do not
+go below $5,000** — under that, keep it and monetize instead. This floor and the
+clearing range are seller-internal and are deliberately omitted from the
+client-facing brief (`ACQUISITION_BRIEF.docx` / `.pdf`), which shows only the
+$12,000 ask. The larger prize is not the code sale; it is monetizing to a small
+paying base first, then selling on a multiple, or retaining it as a
+portfolio/lead asset.
+
+> Before transferring the repository to a buyer, remove this internal section
+> (or the whole markdown brief) so the floor and clearing range are not
+> disclosed. The client-facing `.docx`/`.pdf` are safe to share as-is.
 
 ## 8. Growth levers (roadmap the buyer inherits)
 
