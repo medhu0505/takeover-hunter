@@ -1,0 +1,231 @@
+{
+  "title": "TAKEOVER HUNTER",
+  "subtitle": "Acquisition Brief",
+  "footer": "Takeover Hunter · Acquisition Brief · Confidential",
+  "meta": [
+    [
+      "Asset",
+      "Takeover Hunter, a subdomain-takeover detection and reporting engine"
+    ],
+    [
+      "Version",
+      "2.0.0 (hardened, production-ready)"
+    ],
+    [
+      "Date",
+      "27 September 2026"
+    ],
+    [
+      "Status",
+      "Available for acquisition as intellectual property"
+    ],
+    [
+      "Asking price",
+      "**USD 12,000**"
+    ]
+  ],
+  "sections": [
+    {
+      "h": "1. Executive summary",
+      "blocks": [
+        {
+          "p": "Takeover Hunter detects subdomain takeover vulnerabilities end to end. It enumerates a target's subdomains, triages DNS delegation, fingerprints dangling records against 26 claimable cloud providers, re-verifies each finding to suppress false positives, and produces HackerOne and Bugcrowd-ready reports."
+        },
+        {
+          "p": "Version 2.0 is a modular, tested Python package with a hardened security model, continuous integration, a production Docker image, and full operator documentation, offered as a clean IP transfer."
+        },
+        {
+          "table": {
+            "header": [
+              "At a glance",
+              ""
+            ],
+            "w1": 2600,
+            "rows": [
+              [
+                "Automated tests",
+                "139, with 75% line coverage (97 to 100% on security-critical modules)"
+              ],
+              [
+                "Detection coverage",
+                "26 provider signatures with claimability and proof-of-concept metadata"
+              ],
+              [
+                "Stack",
+                "Python 3.10 to 3.13, Flask 3, gunicorn, Docker (non-root, multi-stage)"
+              ],
+              [
+                "License",
+                "Proprietary (2.x), transferable by written agreement"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "h": "2. What is included",
+      "blocks": [
+        {
+          "table": {
+            "header": [
+              "Included",
+              "Detail"
+            ],
+            "w1": 2600,
+            "rows": [
+              [
+                "Source code",
+                "The takeover_hunter package (1,560 lines across 10 modules), the web UI (1,351 lines), and the test suite (798 lines, 139 tests)."
+              ],
+              [
+                "Documentation",
+                "README, architecture guide, API reference, deployment guide, security policy, and changelog."
+              ],
+              [
+                "Deployment assets",
+                "Multi-stage Dockerfile, Procfile, gunicorn configuration, environment template, and GitHub Actions CI."
+              ],
+              [
+                "Signature database",
+                "26 curated takeover fingerprints with claimability and proof-of-concept metadata."
+              ],
+              [
+                "Brand",
+                "The Takeover Hunter name and UI design."
+              ],
+              [
+                "IP rights",
+                "Copyright in the 2.x codebase, assigned by written agreement."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Negotiable as part of the transaction: the existing repository and its history, the live demo deployment, any associated domain, and a fixed transition-support period from the author.",
+          "before": 140
+        }
+      ]
+    },
+    {
+      "h": "3. Technical overview",
+      "blocks": [
+        {
+          "bullets": [
+            "**Architecture.** Single-purpose modules behind a Flask application factory. Long scans run in worker threads and stream progress to the browser over Server-Sent Events. No database; the service is stateless between requests.",
+            "**Recon integration.** Orchestrates established open-source tools (subfinder, dnsx, httpx, katana, assetfinder, waybackurls, gau) and degrades gracefully when any of them is absent.",
+            "**Detection logic.** A single assessment core combines NXDOMAIN checks, provider body fingerprints, and HTTP status signals into High or Medium confidence, then a separate verification pass confirms the finding before it is marked reportable.",
+            "**Quality.** Linted, with CI running the full suite on four Python versions plus a Docker build on every push."
+          ]
+        }
+      ]
+    },
+    {
+      "h": "4. Security posture",
+      "blocks": [
+        {
+          "p": "The tool is built to run as a hosted service without becoming an attack surface itself."
+        },
+        {
+          "bullets": [
+            "**No shell execution.** External tools run from argument lists, and every request-supplied hostname is validated against the RFC 1035 character set before it reaches a subprocess. A regression test proves shell metacharacters are never executed.",
+            "**SSRF guard.** Targets resolving to private, loopback, link-local, or reserved address space, including cloud metadata endpoints, are refused before any HTTP request.",
+            "**Access control.** Optional API-key authentication with constant-time comparison, and per-client rate limiting on every API route.",
+            "**Hardening.** Content-Security-Policy and related response headers, plus per-scan workload caps."
+          ]
+        }
+      ]
+    },
+    {
+      "h": "5. Intellectual-property position",
+      "blocks": [
+        {
+          "p": "The IP history is disclosed in full so technical and legal review is straightforward."
+        },
+        {
+          "numbers": [
+            "**Prior open-source release.** Version 1.x was published under the MIT License. Copies obtained under MIT remain MIT for their recipients.",
+            "**2.x is a substantial proprietary rewrite.** The version offered here is a near-complete re-architecture (package structure, security model, tests, and documentation) licensed as proprietary from 2.0 onward. It is separately ownable and transferable.",
+            "**Clean path to exclusivity.** The working repository is made private and transferred to the buyer, and an asset-purchase or exclusive-license agreement assigns the 2.x copyright and the brand.",
+            "**Permissive dependencies.** The recon tools are invoked as separate executables; none of their code is embedded."
+          ]
+        }
+      ]
+    },
+    {
+      "h": "6. Market and positioning",
+      "blocks": [
+        {
+          "p": "Subdomain takeover is a persistent, well-understood vulnerability class with an active bug-bounty market and steady demand from attack-surface-management programs. Most available tooling covers one step of the problem from the command line. Takeover Hunter covers the full operator workflow in one product: enumerate, triage, fingerprint, verify, and report, behind a usable interface. Its value is the assembled, verified pipeline and a clean, deployable web product a buyer can brand and ship."
+        }
+      ]
+    },
+    {
+      "h": "7. Asking price",
+      "blocks": [
+        {
+          "p": "**USD 12,000** for the assets listed in Section 2."
+        },
+        {
+          "p": "The price reflects a hardened, tested, documented, and deployable proprietary asset that can change hands quickly:"
+        },
+        {
+          "bullets": [
+            "A working detection-to-report pipeline with a 26-provider signature engine and a finished UI, rather than scripts a buyer would need to assemble and productize.",
+            "A security posture that passes technical due diligence, backed by 139 automated tests and CI.",
+            "Documentation and deployment assets that remove onboarding and integration cost.",
+            "A transferable brand and proprietary copyright."
+          ]
+        },
+        {
+          "p": "For an acquirer that already sells attack-surface management, security tooling, or bug-bounty services, the asset slots into an existing product and customer base with no rebuild, so its value to that buyer exceeds its standalone code value. The asking price is set for a fast, clean transfer.",
+          "before": 120
+        },
+        {
+          "p": "Offers and alternative deal structures are welcome."
+        }
+      ]
+    },
+    {
+      "h": "8. Growth levers for the buyer",
+      "blocks": [
+        {
+          "numbers": [
+            "**Monetize.** Add user accounts and a metered or subscription tier. The API-key layer is already in place.",
+            "**Deepen detection.** Extend the signature set, add automated claim verification, and add scheduled re-scans with change alerts.",
+            "**Scale out.** Move rate limiting to a shared store and add a job queue for very large scans. Both are contained changes.",
+            "**Integrate.** HackerOne and Bugcrowd submission, Slack and webhook alerts, and CSV or JSON export.",
+            "**Distribute.** A hosted free tier as an acquisition funnel, plus a command-line package."
+          ]
+        }
+      ]
+    },
+    {
+      "h": "9. Risks and disclosures",
+      "blocks": [
+        {
+          "bullets": [
+            "No revenue or user base is included in the sale.",
+            "Version 1.x was previously published under MIT, as set out in Section 5.",
+            "Enumeration breadth depends on third-party open-source recon tools. The assessment, verification, and reporting logic is original.",
+            "The tool performs active scanning. The buyer is responsible for enforcing authorized use."
+          ]
+        }
+      ]
+    },
+    {
+      "h": "10. Transaction process",
+      "blocks": [
+        {
+          "numbers": [
+            "The buyer evaluates the asset under a proprietary evaluation license, via repository access or a packaged snapshot.",
+            "The parties agree scope and price.",
+            "An asset-purchase or exclusive-license agreement assigns the 2.x copyright and brand. The repository is transferred privately and deployment assets are handed over.",
+            "Optional transition support from the author for an agreed period."
+          ]
+        }
+      ]
+    }
+  ],
+  "disclaimer": "This brief is an informational summary, not a warranty or an offer. Figures are the seller's good-faith statements. Buyers should carry out independent technical and legal due diligence, and both parties should use counsel to document the transfer."
+}
