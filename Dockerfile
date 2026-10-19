@@ -1,4 +1,6 @@
-FROM python:3.13
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install Go
 RUN curl -sL https://go.dev/dl/go1.22.0.linux-amd64.tar.gz | tar -C /usr/local -xz
@@ -8,7 +10,7 @@ WORKDIR /app
 
 # Copy requirements and install Python deps
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Go tools
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
@@ -20,5 +22,7 @@ ENV PATH="${PATH}:/root/go/bin"
 # Copy app
 COPY . .
 
-# Run
-CMD ["python", "app.py"]
+EXPOSE 3000
+
+# Run via Gunicorn WSGI server
+CMD ["gunicorn", "--bind", "0.0.0.0:3000", "--workers", "2", "--threads", "8", "--timeout", "120", "wsgi:app"]

@@ -1,32 +1,46 @@
-"""
-Unit tests for the deterministic parts of app.py.
+"""Core integration tests for Takeover Hunter v2.0.0 and app/wsgi entrypoints."""
+from __future__ import annotations
 
-Deliberately scoped to logic that doesn't touch the network: fingerprint
-matching, SSE framing, and the HackerOne report template. Live-DNS/live-HTTP
-paths (is_wildcard, http_probe, enumerate_subdomains_stream, ...) are mocked
-where exercised at all -- this suite is not a substitute for testing against
-a real target, it's a guard against regressions in the parts a bad diff can
-silently break (e.g. a fingerprint typo that stops matching a provider, or a
-template edit that drops a field from the submitted report).
-"""
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import dns.exception
 import pytest
 
-import app as app_module
-from app import app as flask_app
-from app import match_fingerprint, resolve_cname_chain, sse_event
+import app as app_entrypoint
+import takeover_hunter as th
+from takeover_hunter import (
+    FINGERPRINTS,
+    create_app,
+    default_resolver,
+    is_safe_target,
+    match_fingerprint,
+    resolve_cname_chain,
+    sse_event,
+)
+import wsgi as wsgi_entrypoint
 
 
 @pytest.fixture
 def client():
-    flask_app.config["TESTING"] = True
+    flask_app = create_app({"TESTING": True, "RATE_LIMIT_PER_MINUTE": 10000})
     with flask_app.test_client() as c:
         yield c
 
 
-# --- match_fingerprint ------------------------------------------------------
+def test_app_and_wsgi_entrypoints_expose_unified_factory():
+    assert hasattr(app_entrypoint, "app")
+    assert hasattr(wsgi_entrypoint, "app")
+    assert app_entrypoint.app.blueprints.keys() == wsgi_entrypoint.app.blueprints.keys()
+    assert "api" in app_entrypoint.app.blueprints
+
+
+def test_root_app_py_is_thin_entrypoint():
+    app_py_lines = Path("/app/applet/app.py").read_text(encoding="utf-8").strip().splitlines()
+    assert len(app_py_lines) <= 15
+    assert "from takeover_hunter import create_app" in "\n".join(app_py_lines)
+
 
 @pytest.mark.parametrize(
     "cname,expected_provider",
@@ -57,7 +71,7 @@ def test_match_fingerprint_is_case_insensitive():
 
 def test_fingerprints_have_no_duplicate_patterns():
     seen = {}
-    for fp in app_module.FINGERPRINTS:
+    for fp in FINGERPRINTS:
         for pattern in fp["patterns"]:
             assert pattern not in seen, (
                 f"pattern {pattern!r} appears in both "
@@ -65,8 +79,6 @@ def test_fingerprints_have_no_duplicate_patterns():
             )
             seen[pattern] = fp["provider"]
 
-
-# --- sse_event ---------------------------------------------------------------
 
 def test_sse_event_format():
     out = sse_event("progress", {"found": 3})
@@ -77,8 +89,6 @@ def test_sse_event_format():
     assert payload == {"found": 3}
 
 
-# --- resolve_cname_chain (DNS mocked) -----------------------------------------
-
 def test_resolve_cname_chain_follows_chain_and_stops_on_failure():
     chain = ["a.example.com", "b.herokuapp.com"]
 
@@ -87,9 +97,9 @@ def test_resolve_cname_chain_follows_chain_and_stops_on_failure():
             return [MagicMock(target=chain[0] + ".")]
         if host == chain[0]:
             return [MagicMock(target=chain[1] + ".")]
-        raise app_module.dns.exception.DNSException("no more records")
+        raise dns.exception.DNSException("no more records")
 
-    with patch.object(app_module.resolver, "resolve", side_effect=fake_resolve):
+    with patch.object(default_resolver, "resolve", side_effect=fake_resolve):
         result = resolve_cname_chain("sub.example.com")
 
     assert result == chain
@@ -97,13 +107,12 @@ def test_resolve_cname_chain_follows_chain_and_stops_on_failure():
 
 def test_resolve_cname_chain_empty_when_no_cname():
     with patch.object(
-        app_module.resolver, "resolve",
-        side_effect=app_module.dns.exception.DNSException("nope"),
+        default_resolver,
+        "resolve",
+        side_effect=dns.exception.DNSException("nope"),
     ):
         assert resolve_cname_chain("sub.example.com") == []
 
-
-# --- /api/report ---------------------------------------------------------------
 
 def test_api_report_includes_all_finding_fields(client):
     finding = {
@@ -128,14 +137,15 @@ def test_api_report_includes_all_finding_fields(client):
         content_type="application/json",
     )
     assert resp.status_code == 200
-    report = resp.get_json()["report"]
-
+    data = resp.get_json()
+    report = data["report"]
     assert "old.example.com" in report
     assert "ghost-app.herokuapp.com" in report
     assert "Heroku" in report
     assert "NXDOMAIN confirmed" in report
     assert "Free PoC possible" in report
     assert "HackerOne: @stickybugger" in report
+    assert "bugcrowd_report" in data
 
 
 def test_api_report_handles_missing_optional_fields(client):
@@ -148,20 +158,18 @@ def test_api_report_handles_missing_optional_fields(client):
     assert "x.example.com" in resp.get_json()["report"]
 
 
-# --- Target Sanitization & Endpoints -----------------------------------------
-
 def test_is_safe_target_valid():
-    assert app_module.is_safe_target("example.com") is True
-    assert app_module.is_safe_target("sub.domain.example.co.uk") is True
-    assert app_module.is_safe_target("api-v2.cloud.internal") is True
+    assert is_safe_target("example.com") is True
+    assert is_safe_target("sub.domain.example.co.uk") is True
+    assert is_safe_target("api-v2.cloud.internal") is True
 
 
 def test_is_safe_target_rejects_dangerous_input():
-    assert app_module.is_safe_target("; cat /etc/passwd") is False
-    assert app_module.is_safe_target("test.com | rm -rf") is False
-    assert app_module.is_safe_target("$(whoami).example.com") is False
-    assert app_module.is_safe_target("`id`.example.com") is False
-    assert app_module.is_safe_target("") is False
+    assert is_safe_target("; cat /etc/passwd") is False
+    assert is_safe_target("test.com | rm -rf") is False
+    assert is_safe_target("$(whoami).example.com") is False
+    assert is_safe_target("`id`.example.com") is False
+    assert is_safe_target("") is False
 
 
 def test_api_tools_endpoint(client):
@@ -192,3 +200,9 @@ def test_api_dns_unsupported_type(client):
     assert resp.status_code == 400
     assert "error" in resp.get_json()
 
+
+def test_template_dom_xss_hardening():
+    html = Path("/app/applet/templates/index.html").read_text(encoding="utf-8")
+    assert ".replace(/\"/g,'&quot;').replace(/'/g,'&#39;')" in html
+    assert "onclick=\"selectResult('vuln',this,${JSON.stringify" not in html
+    assert "onclick=\"showReport(${JSON.stringify" not in html

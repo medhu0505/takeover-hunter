@@ -729,7 +729,7 @@ textarea { resize:none; line-height:1.5; }
 
 <script>
 // ─── STATE ──────────────────────────────────────────────────────────
-const S = { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[] };
+const S = { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[], jsRecon:null, archive:null, selectedVuln:null };
 let logStart = Date.now();
 
 // Entertaining messages for JS Recon
@@ -761,7 +761,7 @@ let messageIndex = 0;
 const ts = () => `+${((Date.now()-logStart)/1000).toFixed(1)}s`;
 
 function escHtml(s) {
-  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function log(msg, cls='') {
@@ -883,7 +883,7 @@ async function startEnum() {
   }
 
   logStart = Date.now();
-  Object.assign(S, { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[] });
+  Object.assign(S, { subdomains:[], cnames:[], dead:[], aRecords:[], vulnerable:[], verified:[], jsRecon:null, archive:null, selectedVuln:null });
   document.getElementById('logBox').innerHTML = '';
   document.getElementById('resultsBox').innerHTML =
     '<div class="empty-state"><div class="spinner" style="width:14px;height:14px;margin:0 auto 10px"></div>Enumerating subdomains...</div>';
@@ -903,7 +903,7 @@ async function startEnum() {
   await listenSSE(`/api/enumerate?target=${encodeURIComponent(target)}`, {}, {
     log:   d => log(d.msg, d.level==='ok'?'l-ok':d.level==='warn'?'l-warn':d.level==='err'?'l-err':'l-info'),
     done:  d => { S.subdomains = d.subdomains; setStat('sSubs', d.count); log(`✓ Enumeration done: ${d.count} subdomains`, 'l-ok'); },
-    error: d => log('Error: '+d.msg, 'l-err'),
+    error: d => log('Error: '+(d.msg || d.error || 'Enumeration failed'), 'l-err'),
   });
 
   setProgress(1,1); log('Running DNS triage...','l-info');
@@ -919,7 +919,7 @@ async function startEnum() {
       setStat('sCname', S.cnames.length); setStat('sDead', S.dead.length);
       log(`✓ Triage — ${S.cnames.length} CNAMEs · ${S.dead.length} dead · ${S.aRecords.length} A`, 'l-ok');
     },
-    error: d => log('Triage error: '+d.msg, 'l-err'),
+    error: d => log('Triage error: '+(d.msg || d.error || 'Triage failed'), 'l-err'),
   });
 
   renderResults();
@@ -933,8 +933,10 @@ async function startEnum() {
 // ─── PROVIDER FILTER ───────────────────────────────────────────────────────
 const PROVIDERS = [
   "Heroku","GitHub Pages","AWS S3","AWS CloudFront","AWS ELB",
-  "Azure TM","Azure Web","Fastly","Netlify","Vercel","Webflow","Pantheon",
-  "Ghost","Shopify","Tumblr","WordPress","Zendesk","Bitbucket","Seismic","Marketo"
+  "Azure Web Apps","Azure Traffic Manager","Fastly","Netlify","Vercel",
+  "Webflow","Pantheon","Ghost","Shopify","Tumblr","WordPress.com",
+  "Zendesk","Bitbucket","Surge.sh","Fly.io","Render","ReadTheDocs",
+  "HelpScout","HelpJuice","Unbounce","Cargo Collective"
 ];
 const selectedProviders = new Set();
 
@@ -944,7 +946,7 @@ function initProviderFilter() {
     const item = document.createElement('div');
     item.className = 'filter-item';
     item.dataset.provider = p;
-    item.innerHTML = `<span>${p}</span><span class="fi-check">✓</span>`;
+    item.innerHTML = `<span>${escHtml(p)}</span><span class="fi-check">✓</span>`;
     item.onclick = () => toggleProvider(p, item);
     list.appendChild(item);
   });
@@ -1006,7 +1008,7 @@ async function startScan() {
   if (!S.cnames.length) return;
   document.getElementById('btnScan').disabled = true;
   document.getElementById('btnVerify').disabled = true;
-  S.vulnerable = []; setStat('sVuln', 0);
+  S.vulnerable = []; S.verified = []; setStat('sVuln', 0);
   setStatus('SCANNING','scanning');
 
   const filter = [...selectedProviders];
@@ -1023,7 +1025,7 @@ async function startScan() {
       log(`⚠ VULN: ${d.sub} [${d.severity}][${d.confidence}]`, 'l-warn');
     },
     done: d => log(`✓ Scan complete — ${d.count} vulnerable`, d.count > 0 ? 'l-warn' : 'l-ok'),
-    error: d => log('Scan error: '+d.msg, 'l-err'),
+    error: d => log('Scan error: '+(d.msg || d.error || 'Scan failed'), 'l-err'),
   });
 
   renderResults();
@@ -1055,7 +1057,7 @@ async function startVerify() {
       const confirmed = S.verified.filter(v => v.verified).length;
       log(`✓ Verification done — ${confirmed}/${S.vulnerable.length} confirmed`, 'l-ok');
     },
-    error: d => log('Verify error: '+d.msg, 'l-err'),
+    error: d => log('Verify error: '+(d.msg || d.error || 'Verify failed'), 'l-err'),
   });
 
   renderResults();
@@ -1105,10 +1107,11 @@ async function startJSRecon() {
       if (entertainTimer) { clearInterval(entertainTimer); entertainTimer = null; }
       log(`✓ JS Recon complete — ${d.js_count} JS files scanned, ${d.secrets.length} secrets found`, 'l-ok');
       S.jsRecon = d;
+      renderJSReconResults(d);
     },
     error: d => {
       if (entertainTimer) { clearInterval(entertainTimer); entertainTimer = null; }
-      log('JS Recon error: '+d.msg, 'l-err');
+      log('JS Recon error: '+(d.msg || d.error || 'JS Recon failed'), 'l-err');
     },
   });
 
@@ -1144,7 +1147,7 @@ async function startArchive() {
       S.archive = d;
       renderArchiveResults(d);
     },
-    error: d => log('Archive error: '+d.msg, 'l-err'),
+    error: d => log('Archive error: '+(d.msg || d.error || 'Archive mining failed'), 'l-err'),
   });
 
   document.getElementById('btnArchive').disabled = false;
@@ -1154,43 +1157,80 @@ async function startArchive() {
 // ─── RENDER RESULTS ──────────────────────────────────────────────────────
 function renderResults() {
   let html = '';
-  
+
+  // VERIFIED RESULTS (IF PASS 2 RUN)
+  if (S.verified && S.verified.length) {
+    const confirmedCount = S.verified.filter(v => v.verified).length;
+    html += `<div class="result-section">✓ VERIFIED (${confirmedCount}/${S.verified.length})</div>`;
+    S.verified.forEach((v, idx) => {
+      const badgeCls = v.verified ? 'b-crit' : 'b-prov';
+      const statusText = v.verified ? `CONFIRMED · ${escHtml(v.severity)}` : 'SUPPRESSED';
+      html += `<div class="row-item" data-index="${idx}" onclick="selectResult('verified',this,${idx})"><div class="ri-icon ${v.verified?'ri-vuln':'ri-dead'}">${v.verified?'✓':'✕'}</div><div class="ri-sub">${escHtml(v.sub)}</div><span class="badge ${badgeCls}">${statusText}</span></div>`;
+    });
+  }
+
   // VULNERABLE RESULTS (PRIORITY)
   if (S.vulnerable.length) {
     html += `<div class="result-section">🚨 VULNERABLE (${S.vulnerable.length})</div>`;
-    S.vulnerable.forEach(v => {
-      html += `<div class="row-item" onclick="selectResult('vuln',this,${JSON.stringify(v).replace(/"/g,'&quot;')})"><div class="ri-icon ri-vuln">!</div><div class="ri-sub">${escHtml(v.sub)}</div><span class="badge b-crit">${v.severity}</span></div>`;
+    S.vulnerable.forEach((v, idx) => {
+      html += `<div class="row-item" data-index="${idx}" onclick="selectResult('vuln',this,${idx})"><div class="ri-icon ri-vuln">!</div><div class="ri-sub">${escHtml(v.sub)}</div><span class="badge b-crit">${escHtml(v.severity)}</span></div>`;
     });
   }
-  
+
   if (S.cnames.length) {
     html += `<div class="result-section">CNAMES (${S.cnames.length})</div>`;
-    S.cnames.slice(0,100).forEach(c => {
+    S.cnames.slice(0,100).forEach((c, idx) => {
       const isVuln = S.vulnerable.some(v => v.sub === c.sub);
       if (!isVuln) {
-        html += `<div class="row-item" onclick="selectResult('cname',this,${JSON.stringify(c).replace(/"/g,'&quot;')})"><div class="ri-icon ri-cname">C</div><div class="ri-sub">${escHtml(c.sub)}</div><span class="badge b-prov">${escHtml(c.provider)}</span></div>`;
+        html += `<div class="row-item" data-index="${idx}" onclick="selectResult('cname',this,${idx})"><div class="ri-icon ri-cname">C</div><div class="ri-sub">${escHtml(c.sub)}</div><span class="badge b-prov">${escHtml(c.provider)}</span></div>`;
       }
     });
   }
-  
+
   if (S.subdomains.length) {
     html += `<div class="result-section">ENUMERATED (${S.subdomains.length})</div>`;
-    S.subdomains.slice(0,100).forEach(s => {
+    S.subdomains.slice(0,100).forEach((s, idx) => {
       const inCnames = S.cnames.some(c => c.sub === s);
       if (!inCnames) {
-        html += `<div class="row-item" onclick="selectResult('enum',this)"><div class="ri-icon ri-a">S</div><div class="ri-sub">${escHtml(s)}</div></div>`;
+        html += `<div class="row-item" data-index="${idx}" onclick="selectResult('enum',this,${idx})"><div class="ri-icon ri-a">S</div><div class="ri-sub">${escHtml(s)}</div></div>`;
       }
     });
   }
-  
+
   if (S.dead.length) {
     html += `<div class="result-section">DEAD (${S.dead.length})</div>`;
-    S.dead.slice(0,50).forEach(d => {
-      html += `<div class="row-item"><div class="ri-icon ri-dead">✕</div><div class="ri-sub">${escHtml(d.sub)}</div></div>`;
+    S.dead.slice(0,50).forEach((d, idx) => {
+      html += `<div class="row-item" data-index="${idx}" onclick="selectResult('dead',this,${idx})"><div class="ri-icon ri-dead">✕</div><div class="ri-sub">${escHtml(d.sub)}</div></div>`;
     });
   }
 
   document.getElementById('resultsBox').innerHTML = html || '<div class="empty-state">No results yet</div>';
+}
+
+function renderJSReconResults(jsRecon) {
+  log(`🕵️ Showing JS Recon results in details panel`, 'l-info');
+  const secrets = jsRecon.secrets || [];
+  const jsUrls = jsRecon.js_urls || [];
+  let html = `
+    <div class="detail-section">
+      <div class="detail-title">JS RECON SUMMARY</div>
+      <div class="drow"><div class="dk">JS Files Scanned</div><div class="dv blue">${escHtml(jsRecon.js_count || jsUrls.length)}</div></div>
+      <div class="drow"><div class="dk">Secrets Found</div><div class="dv ${secrets.length ? 'red' : 'green'}">${escHtml(secrets.length)}</div></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">POTENTIAL SECRETS</div>
+      <div style="font-size:9px;color:var(--muted);max-height:140px;overflow-y:auto;">
+        ${secrets.length ? secrets.map(s => `<div style="word-break:break-all;margin:4px 0;color:var(--red);"><strong>[${escHtml(s.type)}]</strong> ${escHtml(s.value)} <span style="color:var(--muted)">(${escHtml(s.url)})</span></div>`).join('') : 'No hardcoded secrets detected'}
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title">DISCOVERED JS ASSETS</div>
+      <div style="font-size:9px;color:var(--muted);max-height:140px;overflow-y:auto;">
+        ${jsUrls.length ? jsUrls.slice(0, 20).map(u => `<div style="word-break:break-all;margin:2px 0;color:var(--blue);">${escHtml(u)}</div>`).join('') : 'None'}
+      </div>
+    </div>
+  `;
+  document.getElementById('detailBox').innerHTML = html;
 }
 
 function renderArchiveResults(archive) {
@@ -1198,7 +1238,7 @@ function renderArchiveResults(archive) {
   let html = `
     <div class="detail-section">
       <div class="detail-title">ARCHIVE MINING RESULTS</div>
-      <div class="drow"><div class="dk">Total URLs</div><div class="dv green">${archive.total}</div></div>
+      <div class="drow"><div class="dk">Total URLs</div><div class="dv green">${escHtml(archive.total)}</div></div>
     </div>
     <div class="detail-section">
       <div class="detail-title">PARAMETERIZED URLs</div>
@@ -1225,20 +1265,72 @@ function renderArchiveResults(archive) {
       </div>
     </div>
   `;
-  
+
   document.getElementById('detailBox').innerHTML = html;
 }
 
-function selectResult(type, el, data) {
+function selectResult(type, el, idx) {
   document.querySelectorAll('.row-item').forEach(x => x.classList.remove('selected'));
-  el.classList.add('selected');
-  
-  if (type === 'vuln' && data) {
-    showDetail(data);
+  if (el) el.classList.add('selected');
+
+  if (type === 'verified') {
+    const item = S.verified[idx];
+    if (item) showDetail(item, idx, 'verified');
+  } else if (type === 'vuln') {
+    const item = S.vulnerable[idx];
+    if (item) showDetail(item, idx, 'vuln');
+  } else if (type === 'cname') {
+    const item = S.cnames[idx];
+    if (item) showCnameDetail(item);
+  } else if (type === 'enum') {
+    const sub = S.subdomains[idx];
+    if (sub) showEnumDetail(sub);
+  } else if (type === 'dead') {
+    const item = S.dead[idx];
+    if (item) showEnumDetail(item.sub, true);
   }
 }
 
-function showDetail(vuln) {
+function showCnameDetail(c) {
+  const html = `
+    <div class="detail-section">
+      <div class="detail-title">CNAME RECORD</div>
+      <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(c.sub)}</div></div>
+      <div class="drow"><div class="dk">CNAME Target</div><div class="dv blue">${escHtml(c.cname)}</div></div>
+      <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(c.provider)}</div></div>
+      <div class="drow"><div class="dk">Claimable</div><div class="dv ${c.claimable?'green':'yellow'}">${c.claimable?'YES':'NO'}</div></div>
+    </div>
+  `;
+  document.getElementById('detailBox').innerHTML = html;
+}
+
+function showEnumDetail(sub, isDead=false) {
+  const aRec = S.aRecords.find(a => a.sub === sub);
+  const ips = aRec && aRec.ips ? aRec.ips.join(', ') : (isDead ? 'NXDOMAIN (Dead)' : 'Resolved');
+  const html = `
+    <div class="detail-section">
+      <div class="detail-title">${isDead ? 'DEAD SUBDOMAIN' : 'ENUMERATED SUBDOMAIN'}</div>
+      <div class="drow"><div class="dk">Host</div><div class="dv">${escHtml(sub)}</div></div>
+      <div class="drow"><div class="dk">DNS Status</div><div class="dv ${isDead?'red':'green'}">${escHtml(ips)}</div></div>
+    </div>
+  `;
+  document.getElementById('detailBox').innerHTML = html;
+}
+
+function showDetail(vuln, idx=0, sourceType='vuln') {
+  S.selectedVuln = vuln;
+  let verifySection = '';
+  if (vuln.verified !== undefined && sourceType === 'verified') {
+    verifySection = `
+      <div class="detail-section">
+        <div class="detail-title">TWO-PASS VERIFICATION</div>
+        <div class="drow"><div class="dk">Confirmed</div><div class="dv ${vuln.verified?'green':'yellow'}">${vuln.verified?'YES (REPORTABLE)':'NO (SUPPRESSED)'}</div></div>
+        <div class="drow"><div class="dk">CNAME Intact</div><div class="dv">${vuln.cname_still_present?'YES':'NO'}</div></div>
+        <div class="drow"><div class="dk">Verify HTTP</div><div class="dv">${escHtml(vuln.verify_http)}</div></div>
+      </div>
+    `;
+  }
+
   let html = `
     <div class="detail-section">
       <div class="detail-title">SUBDOMAIN</div>
@@ -1252,13 +1344,14 @@ function showDetail(vuln) {
     <div class="detail-section">
       <div class="detail-title">VULNERABILITY</div>
       <div class="drow"><div class="dk">Status</div><div class="dv red">VULNERABLE</div></div>
-      <div class="drow"><div class="dk">Severity</div><div class="dv red">${vuln.severity}</div></div>
-      <div class="drow"><div class="dk">Confidence</div><div class="dv green">${vuln.confidence.toUpperCase()}</div></div>
+      <div class="drow"><div class="dk">Severity</div><div class="dv red">${escHtml(vuln.severity)}</div></div>
+      <div class="drow"><div class="dk">Confidence</div><div class="dv green">${escHtml((vuln.confidence || '').toUpperCase())}</div></div>
       <div class="drow"><div class="dk">NXDOMAIN</div><div class="dv ${vuln.nxdomain?'green':'yellow'}">${vuln.nxdomain?'YES':'NO'}</div></div>
-      <div class="drow"><div class="dk">HTTP Code</div><div class="dv">${vuln.http_code}</div></div>
+      <div class="drow"><div class="dk">HTTP Code</div><div class="dv">${escHtml(vuln.http_code)}</div></div>
     </div>
+    ${verifySection}
   `;
-  
+
   if (vuln.claimable) {
     html += `<div class="detail-section">
       <div class="detail-title">CLAIMABILITY</div>
@@ -1266,18 +1359,27 @@ function showDetail(vuln) {
       <div class="drow"><div class="dk">Free Account</div><div class="dv ${vuln.free_account?'green':'yellow'}">${vuln.free_account?'YES':'NO'}</div></div>
     </div>`;
   }
-  
-  html += `<button class="action-btn action-btn-green" onclick="showReport(${JSON.stringify(vuln).replace(/"/g,'&quot;')})">Generate Report</button>`;
-  
+
+  html += `<button class="action-btn action-btn-green" data-index="${Number(idx)}" data-source="${escHtml(sourceType)}" onclick="showReportFromState(this)">Generate Report</button>`;
+
   document.getElementById('detailBox').innerHTML = html;
 }
 
+function showReportFromState(btnEl) {
+  const idx = Number(btnEl.getAttribute('data-index') || 0);
+  const source = btnEl.getAttribute('data-source') || 'vuln';
+  const vuln = (source === 'verified' ? S.verified[idx] : S.vulnerable[idx]) || S.selectedVuln;
+  if (vuln) showReport(vuln);
+}
+
 function showReport(vuln) {
+  const targetFinding = vuln || S.selectedVuln;
+  if (!targetFinding) return;
   fetch('/api/report', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      finding: vuln,
+      finding: targetFinding,
       h1_user: document.getElementById('h1user').value || 'stickybugger',
       platform: 'HackerOne'
     })
@@ -1299,7 +1401,7 @@ function copyModalReport() {
 }
 
 function exportResults() {
-  const data = { subdomains: S.subdomains, cnames: S.cnames, vulnerable: S.vulnerable };
+  const data = { subdomains: S.subdomains, cnames: S.cnames, vulnerable: S.vulnerable, verified: S.verified };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1317,24 +1419,29 @@ async function runQuickScan() {
     return;
   }
 
-  const result = await fetch('/api/quickscan', {
+  const res = await fetch('/api/quickscan', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ sub, cname })
-  }).then(r => r.json());
+  });
+  const result = await res.json();
+  if (!res.ok) {
+    log('⚠ Quick scan error: ' + (result.error || 'Invalid input'), 'l-err');
+    return;
+  }
 
   const html = `
     <div class="drow"><div class="dk">Subdomain</div><div class="dv">${escHtml(result.sub)}</div></div>
     <div class="drow"><div class="dk">CNAME</div><div class="dv">${escHtml(result.cname)}</div></div>
     <div class="drow"><div class="dk">Provider</div><div class="dv">${escHtml(result.provider)}</div></div>
     <div class="drow"><div class="dk">Status</div><div class="dv ${result.vulnerable?'red':'green'}">${result.vulnerable?'VULNERABLE':'SAFE'}</div></div>
-    <div class="drow"><div class="dk">Confidence</div><div class="dv">${result.confidence.toUpperCase()}</div></div>
+    <div class="drow"><div class="dk">Confidence</div><div class="dv">${escHtml((result.confidence || 'low').toUpperCase())}</div></div>
   `;
 
   const el = document.getElementById('qsResult');
   el.innerHTML = html;
   el.classList.add('show');
-  el.classList.toggle('vuln', result.vulnerable);
+  el.classList.toggle('vuln', Boolean(result.vulnerable));
   el.classList.toggle('safe', !result.vulnerable);
 }
 
@@ -1373,6 +1480,7 @@ async function runBulkScan() {
   });
 
   renderResults();
+  document.getElementById('btnVerify').disabled = S.vulnerable.length === 0;
 }
 
 // Init on load

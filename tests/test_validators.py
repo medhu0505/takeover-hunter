@@ -10,7 +10,6 @@ from takeover_hunter.validators import (
 )
 
 
-# --- RFC 1035 Valid Hostnames ---
 @pytest.mark.parametrize(
     "hostname",
     [
@@ -21,8 +20,8 @@ from takeover_hunter.validators import (
         "123.com",
         "my-host-name.org",
         "sub-domain.example.com",
-        "example.com.",  # trailing dot
-        "xn--bcher-kva.example",  # IDN punycode
+        "example.com.",
+        "xn--bcher-kva.example",
         "api-v2.internal.service.io",
     ],
 )
@@ -31,7 +30,6 @@ def test_valid_hostnames(hostname):
     assert validate_domain(hostname).rstrip(".") == hostname.lower().rstrip(".")
 
 
-# --- Shell Metacharacter & Injection Rejection Tests ---
 @pytest.mark.parametrize(
     "injected_input",
     [
@@ -75,7 +73,6 @@ def test_shell_metacharacters_rejected(injected_input):
         validate_domain(injected_input)
 
 
-# --- Flag / Option Injection Rejection ---
 @pytest.mark.parametrize(
     "flag_input",
     [
@@ -93,7 +90,6 @@ def test_flags_rejected(flag_input):
         validate_domain(flag_input)
 
 
-# --- Label Length and Domain Length Boundaries ---
 def test_label_length_at_limit_63():
     label_63 = "a" * 63
     domain = f"{label_63}.example.com"
@@ -109,15 +105,13 @@ def test_label_length_exceeded_64():
 
 
 def test_domain_total_length_exceeded_254():
-    # 254 chars total
-    sub = ("a" * 60 + ".") * 4 + "example.com"  # 61*4 + 11 = 255 chars
+    sub = ("a" * 60 + ".") * 4 + "example.com"
     assert len(sub) > 253
     assert is_valid_hostname(sub) is False
     with pytest.raises(ValueError, match="Invalid domain format"):
         validate_domain(sub)
 
 
-# --- Label Hyphen Constraints ---
 def test_label_leading_hyphen_rejected():
     assert is_valid_hostname("-sub.example.com") is False
     assert is_valid_hostname("sub.-example.com") is False
@@ -133,6 +127,12 @@ def test_empty_labels_rejected():
     assert is_valid_hostname(".example.com") is False
     assert is_valid_hostname("") is False
     assert is_valid_hostname("   ") is False
+    assert is_valid_hostname("example.com.", allow_trailing_dot=False) is False
+
+
+def test_validate_domain_empty_rejected():
+    with pytest.raises(ValueError, match="Domain cannot be empty"):
+        validate_domain("   ")
 
 
 def test_numeric_tld_rejected():
@@ -153,12 +153,16 @@ def test_non_string_inputs_handled():
         validate_domain(None)  # type: ignore
 
 
-# --- Subdomain List Sanitizer ---
+def test_validate_subdomain_list_empty():
+    assert validate_subdomain_list([]) == []
+    assert validate_subdomain_list(None) == []  # type: ignore
+
+
 def test_validate_subdomain_list_filters_and_deduplicates():
     inputs = [
         "https://sub1.example.com/path",
         "http://sub2.example.com:8080",
-        "SUB1.EXAMPLE.COM",  # duplicate
+        "SUB1.EXAMPLE.COM",
         "valid.example.com",
         "invalid;injection.com",
         "-flag.example.com",

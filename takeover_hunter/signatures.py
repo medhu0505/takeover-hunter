@@ -1,13 +1,14 @@
 """Curated signature database of 26 cloud and SaaS providers for takeover auditing."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)
 class Signature:
     """Structured representation of a third-party service provider takeover fingerprint."""
+
     provider: str
     cname_patterns: List[str]
     http_fingerprints: List[str]
@@ -40,7 +41,11 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Heroku",
         cname_patterns=["herokuapp.com", "herokussl.com", "herokudns.com"],
-        http_fingerprints=["No such app", "Heroku | No such app", "There is no app configured at that hostname"],
+        http_fingerprints=[
+            "No such app",
+            "Heroku | No such app",
+            "There is no app configured at that hostname",
+        ],
         http_status=[404, 502],
         nxdomain_required=False,
         claimable=True,
@@ -51,7 +56,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="GitHub Pages",
         cname_patterns=["github.io", "githubusercontent.com"],
-        http_fingerprints=["There isn't a GitHub Pages site here", "404 There isn't a GitHub Pages site here"],
+        http_fingerprints=[
+            "There isn't a GitHub Pages site here",
+            "404 There isn't a GitHub Pages site here",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -61,7 +69,18 @@ SIGNATURES: List[Signature] = [
     ),
     Signature(
         provider="AWS S3",
-        cname_patterns=["s3.amazonaws.com", "s3-website", "s3.dualstack", "s3-website-"],
+        cname_patterns=[
+            "s3.amazonaws.com",
+            "s3-website.amazonaws.com",
+            "s3.dualstack.amazonaws.com",
+            "s3-website-us-east-1.amazonaws.com",
+            "s3-website-us-west-1.amazonaws.com",
+            "s3-website-us-west-2.amazonaws.com",
+            "s3-website-eu-west-1.amazonaws.com",
+            "s3-website.eu-central-1.amazonaws.com",
+            "s3-website-ap-southeast-1.amazonaws.com",
+            "s3-website-ap-northeast-1.amazonaws.com",
+        ],
         http_fingerprints=["NoSuchBucket", "The specified bucket does not exist"],
         http_status=[404],
         nxdomain_required=False,
@@ -73,8 +92,11 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="AWS CloudFront",
         cname_patterns=["cloudfront.net"],
-        http_fingerprints=["Bad Request: ERROR: The request could not be satisfied", "The request could not be satisfied"],
-        http_status=[403, 404],
+        http_fingerprints=[
+            "Bad Request: ERROR: The request could not be satisfied",
+            "ERROR: The request could not be satisfied",
+        ],
+        http_status=[400, 403, 404],
         nxdomain_required=False,
         claimable=True,
         free_account=False,
@@ -128,7 +150,7 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Netlify",
         cname_patterns=["netlify.app", "netlify.com"],
-        http_fingerprints=["Not Found - Request ID", "page not found", "Netlify - Page Not Found"],
+        http_fingerprints=["Not Found - Request ID", "Netlify - Page Not Found"],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -139,7 +161,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Vercel",
         cname_patterns=["vercel.app", "now.sh", "vercel-dns.com"],
-        http_fingerprints=["The deployment could not be found on Vercel", "DEPLOYMENT_NOT_FOUND"],
+        http_fingerprints=[
+            "The deployment could not be found on Vercel",
+            "DEPLOYMENT_NOT_FOUND",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -150,7 +175,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Webflow",
         cname_patterns=["proxy.webflow.com", "proxy-ssl.webflow.com", "webflow.io"],
-        http_fingerprints=["The page you are looking for does not exist", "The page you are looking for doesn't exist"],
+        http_fingerprints=[
+            "The page you are looking for does not exist. Please check the URL",
+            "The page you are looking for doesn't exist or has been moved",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -161,7 +189,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Pantheon",
         cname_patterns=["pantheonsite.io"],
-        http_fingerprints=["404 error unknown site!", "The site you are looking for could not be found"],
+        http_fingerprints=[
+            "404 error unknown site!",
+            "The site you are looking for could not be found",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -172,7 +203,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Ghost",
         cname_patterns=["ghost.io"],
-        http_fingerprints=["The thing you were looking for is no longer here", "Ghost - Page Not Found"],
+        http_fingerprints=[
+            "The thing you were looking for is no longer here",
+            "Ghost - Page Not Found",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -183,7 +217,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Shopify",
         cname_patterns=["myshopify.com"],
-        http_fingerprints=["Sorry, this shop is currently unavailable", "Shopify | Store Not Found"],
+        http_fingerprints=[
+            "Sorry, this shop is currently unavailable",
+            "Shopify | Store Not Found",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -194,7 +231,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Tumblr",
         cname_patterns=["domains.tumblr.com", "tumblr.com"],
-        http_fingerprints=["There's nothing here.", "Whatever you were looking for doesn't exist"],
+        http_fingerprints=[
+            "There's nothing here.",
+            "Whatever you were looking for doesn't exist at this address",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -205,7 +245,7 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="WordPress.com",
         cname_patterns=["wordpress.com"],
-        http_fingerprints=["Do you want to register", "doesn't exist"],
+        http_fingerprints=["Do you want to register"],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -249,7 +289,7 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Fly.io",
         cname_patterns=["edge.fly.io", "fly.dev"],
-        http_fingerprints=["404 Not Found", "Fly.io edge error"],
+        http_fingerprints=["Fly.io edge error", "Could not find app"],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -271,7 +311,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="ReadTheDocs",
         cname_patterns=["readthedocs.io", "readthedocs.org"],
-        http_fingerprints=["is unknown to Read the Docs", "Project not found on Read the Docs"],
+        http_fingerprints=[
+            "is unknown to Read the Docs",
+            "Project not found on Read the Docs",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -282,7 +325,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="HelpScout",
         cname_patterns=["helpscoutdocs.com"],
-        http_fingerprints=["No settings were found for this company", "Help Scout Docs 404"],
+        http_fingerprints=[
+            "No settings were found for this company",
+            "Help Scout Docs 404",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -293,7 +339,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="HelpJuice",
         cname_patterns=["helpjuice.com"],
-        http_fingerprints=["We could not find what you're looking for", "Helpjuice 404"],
+        http_fingerprints=[
+            "We could not find what you're looking for",
+            "Helpjuice 404",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -304,7 +353,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Unbounce",
         cname_patterns=["unbouncepages.com"],
-        http_fingerprints=["The requested URL was not found on this server", "The requested page was not found"],
+        http_fingerprints=[
+            "The requested URL was not found on this server",
+            "The requested page was not found",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -315,7 +367,10 @@ SIGNATURES: List[Signature] = [
     Signature(
         provider="Cargo Collective",
         cname_patterns=["cargocollective.com", "subdomain.cargo.site"],
-        http_fingerprints=["404 Not Found", "Cargo Collective: 404"],
+        http_fingerprints=[
+            "Cargo Collective: 404",
+            "If you're moving your domain away from Cargo",
+        ],
         http_status=[404],
         nxdomain_required=False,
         claimable=True,
@@ -339,14 +394,31 @@ def get_signature_by_provider(provider_name: str) -> Optional[Signature]:
 
 
 def match_signature(cname_target: str) -> Optional[Signature]:
-    """Match a CNAME target string to one of the 26 known provider signatures."""
-    if not cname_target:
+    """Match a CNAME target string to one of the 26 known provider signatures using strict suffix matching."""
+    if not isinstance(cname_target, str) or not cname_target.strip():
         return None
-    target_clean = cname_target.strip().lower()
+    target_clean = cname_target.strip().lower().rstrip(".")
+    if not target_clean:
+        return None
+
     for sig in SIGNATURES:
         for pattern in sig.cname_patterns:
-            if pattern in target_clean:
+            pat = pattern.strip().lower().rstrip(".")
+            if target_clean == pat or target_clean.endswith("." + pat):
                 return sig
+
+    # Regional AWS S3 endpoints (e.g. bucket.s3-website-us-east-1.amazonaws.com, bucket.s3.eu-west-1.amazonaws.com)
+    if target_clean.endswith(".amazonaws.com"):
+        labels = target_clean[:-len(".amazonaws.com")].split(".")
+        if any(
+            lbl == "s3"
+            or lbl.startswith("s3-website")
+            or lbl.startswith("s3-accelerate")
+            or lbl == "dualstack"
+            for lbl in labels
+        ):
+            return get_signature_by_provider("AWS S3")
+
     return None
 
 

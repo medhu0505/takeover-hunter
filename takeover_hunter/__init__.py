@@ -13,19 +13,54 @@ from flask import Flask, jsonify, render_template
 from .config import Config, get_config
 from .dns_triage import (
     check_nxdomain,
+    create_resolver,
+    default_resolver,
     is_wildcard,
     resolve_a,
     resolve_cname,
     resolve_cname_chain,
     triage_subdomain,
+    triage_subdomain_bulk,
 )
-from .enumerator import enumerate_subdomains, get_available_tools, is_tool_available
+from .enumerator import (
+    enumerate_subdomains,
+    get_available_tools,
+    is_tool_available,
+    probe_with_httpx,
+    run_binary_safe,
+)
 from .routes import api_bp, generate_bugcrowd_report, generate_h1_report, sse_event
-from .security import SlidingWindowRateLimiter, apply_security_headers
-from .signatures import FINGERPRINTS, SIGNATURES, match_fingerprint, match_signature
-from .ssrf_guard import SafeProbeResult, safe_http_probe
+from .security import (
+    SlidingWindowRateLimiter,
+    apply_security_headers,
+    extract_api_key,
+    require_auth_and_rate_limit,
+    verify_api_key,
+)
+from .signatures import (
+    FINGERPRINTS,
+    SIGNATURES,
+    Signature,
+    get_signature_by_provider,
+    match_fingerprint,
+    match_signature,
+)
+from .ssrf_guard import (
+    BLOCKED_NETWORKS,
+    PinnedIPHTTPAdapter,
+    SafeProbeResult,
+    SSRFBlockedException,
+    is_ip_blocked,
+    resolve_and_validate_hostname,
+    safe_http_probe,
+    validate_ip_string,
+    verify_response_peer_ip,
+)
 from .validators import is_valid_hostname, validate_domain, validate_subdomain_list
-from .verifier import Finding, assess_target, verify_finding
+from .verifier import Finding, assess_target, calculate_severity, verify_finding
+
+# Compatibility alias for legacy callers
+is_safe_target = is_valid_hostname
 
 __version__ = "2.0.0"
 __all__ = [
@@ -34,34 +69,54 @@ __all__ = [
     "get_config",
     "SIGNATURES",
     "FINGERPRINTS",
+    "Signature",
+    "get_signature_by_provider",
     "match_signature",
     "match_fingerprint",
     "assess_target",
     "verify_finding",
+    "calculate_severity",
     "Finding",
     "validate_domain",
     "is_valid_hostname",
+    "is_safe_target",
     "validate_subdomain_list",
     "safe_http_probe",
     "SafeProbeResult",
+    "SSRFBlockedException",
+    "BLOCKED_NETWORKS",
+    "is_ip_blocked",
+    "validate_ip_string",
+    "resolve_and_validate_hostname",
+    "verify_response_peer_ip",
+    "PinnedIPHTTPAdapter",
     "is_tool_available",
     "get_available_tools",
+    "run_binary_safe",
     "enumerate_subdomains",
+    "probe_with_httpx",
+    "create_resolver",
+    "default_resolver",
     "resolve_cname",
     "resolve_cname_chain",
     "check_nxdomain",
     "resolve_a",
     "is_wildcard",
     "triage_subdomain",
+    "triage_subdomain_bulk",
     "sse_event",
     "generate_h1_report",
     "generate_bugcrowd_report",
+    "SlidingWindowRateLimiter",
+    "verify_api_key",
+    "extract_api_key",
+    "require_auth_and_rate_limit",
+    "apply_security_headers",
 ]
 
 
 def create_app(test_config: Optional[dict] = None) -> Flask:
     """Flask 3 application factory."""
-    # Locate templates relative to package root or app root
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     templates_dir = os.path.join(base_dir, "templates")
     static_dir = os.path.join(base_dir, "static")
@@ -80,27 +135,21 @@ def create_app(test_config: Optional[dict] = None) -> Flask:
     if test_config:
         app.config.update(test_config)
 
-    # Initialize sliding-window rate limiter extension
     limiter = SlidingWindowRateLimiter(
-        limit=config_obj.RATE_LIMIT_PER_MINUTE,
+        limit=int(app.config.get("RATE_LIMIT_PER_MINUTE", config_obj.RATE_LIMIT_PER_MINUTE)),
         window_seconds=60,
     )
     app.extensions["rate_limiter"] = limiter
 
-    # Security header middleware on all responses
     app.after_request(apply_security_headers)
-
-    # Register API blueprint
     app.register_blueprint(api_bp, url_prefix="/api")
 
-    # Serve Web UI
     @app.route("/")
     def index():
         if os.path.exists(os.path.join(templates_dir, "index.html")):
             return render_template("index.html")
         return jsonify({"message": "Takeover Hunter v2.0.0 API active", "version": "2.0.0"})
 
-    # Global Error Handlers
     @app.errorhandler(400)
     def handle_bad_request(e):
         return jsonify({"error": "Bad Request", "message": str(e)}), 400
@@ -119,6 +168,9 @@ def create_app(test_config: Optional[dict] = None) -> Flask:
 
     @app.errorhandler(500)
     def handle_server_error(e):
-        return jsonify({"error": "Internal Server Error", "message": "An unexpected error occurred"}), 500
+        return jsonify({
+            "error": "Internal Server Error",
+            "message": "An unexpected error occurred",
+        }), 500
 
     return app

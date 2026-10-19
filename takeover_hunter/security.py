@@ -1,14 +1,15 @@
 """Security middleware, authentication, rate limiting, and HTTP response hardening.
 
-Enforces constant-time API key verification, token-bucket/sliding-window rate limiting,
+Enforces constant-time API key verification, thread-safe sliding-window rate limiting,
 and defense-in-depth HTTP security headers (CSP, HSTS, X-Frame-Options, nosniff).
 """
 from __future__ import annotations
 
-import hmac
-import time
 from collections import defaultdict
 from functools import wraps
+import hmac
+import threading
+import time
 from typing import Callable, Dict, List, Optional, Tuple
 
 from flask import Response, current_app, jsonify, request
@@ -21,30 +22,30 @@ class SlidingWindowRateLimiter:
         self.limit = limit
         self.window_seconds = window_seconds
         self.requests: Dict[str, List[float]] = defaultdict(list)
+        self._lock = threading.Lock()
 
     def is_allowed(self, client_id: str) -> Tuple[bool, int]:
         """Check if client is within rate limits. Returns (allowed, retry_after_seconds)."""
         now = time.time()
         window_start = now - self.window_seconds
-        timestamps = self.requests[client_id]
 
-        # Prune timestamps outside current sliding window
-        valid_timestamps = [ts for ts in timestamps if ts > window_start]
-        self.requests[client_id] = valid_timestamps
+        with self._lock:
+            timestamps = self.requests[client_id]
+            valid_timestamps = [ts for ts in timestamps if ts > window_start]
+            self.requests[client_id] = valid_timestamps
 
-        if len(valid_timestamps) >= self.limit:
-            # Client has exceeded limit
-            oldest = valid_timestamps[0]
-            retry_after = max(1, int(oldest + self.window_seconds - now))
-            return False, retry_after
+            if len(valid_timestamps) >= self.limit:
+                oldest = valid_timestamps[0]
+                retry_after = max(1, int(oldest + self.window_seconds - now))
+                return False, retry_after
 
-        # Record this request
-        self.requests[client_id].append(now)
-        return True, 0
+            self.requests[client_id].append(now)
+            return True, 0
 
     def reset(self) -> None:
         """Clear all rate limiting records."""
-        self.requests.clear()
+        with self._lock:
+            self.requests.clear()
 
 
 # Default package-level rate limiter
@@ -85,7 +86,9 @@ def require_auth_and_rate_limit(f: Callable) -> Callable:
     @wraps(f)
     def decorated_function(*args, **kwargs):
         cfg = current_app.config.get("HUNTER_CONFIG")
-        expected_key = getattr(cfg, "API_KEY", "") if cfg else current_app.config.get("API_KEY", "")
+        expected_key = current_app.config.get("API_KEY") or (
+            getattr(cfg, "API_KEY", "") if cfg else ""
+        )
 
         # 1. API Key Authentication Check
         if expected_key:
@@ -97,7 +100,9 @@ def require_auth_and_rate_limit(f: Callable) -> Callable:
                 }), 401
 
         # 2. Rate Limiting Check
-        rate_limit = getattr(cfg, "RATE_LIMIT_PER_MINUTE", 120) if cfg else 120
+        rate_limit = current_app.config.get("RATE_LIMIT_PER_MINUTE") or (
+            getattr(cfg, "RATE_LIMIT_PER_MINUTE", 120) if cfg else 120
+        )
         limiter = current_app.extensions.get("rate_limiter", default_rate_limiter)
         limiter.limit = rate_limit
 
@@ -123,7 +128,6 @@ def require_auth_and_rate_limit(f: Callable) -> Callable:
 
 def apply_security_headers(response: Response) -> Response:
     """Attach standard defensive security response headers to all HTTP responses."""
-    # Content Security Policy (strict script/style/font/frame restrictions)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
@@ -136,13 +140,11 @@ def apply_security_headers(response: Response) -> Response:
         "base-uri 'self'; "
         "form-action 'self';"
     )
-    # Prevent MIME-type sniffing
     response.headers["X-Content-Type-Options"] = "nosniff"
-    # Prevent clickjacking
     response.headers["X-Frame-Options"] = "DENY"
-    # Referrer privacy
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    # Hardware access restrictions
-    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()"
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), camera=(), microphone=(), payment=()"
+    )
 
     return response
