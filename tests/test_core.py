@@ -15,7 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import app as app_module
-from app import app as flask_app, match_fingerprint, sse_event, resolve_cname_chain
+from app import app as flask_app
+from app import match_fingerprint, resolve_cname_chain, sse_event
 
 
 @pytest.fixture
@@ -119,7 +120,11 @@ def test_api_report_includes_all_finding_fields(client):
     }
     resp = client.post(
         "/api/report",
-        data=json.dumps({"finding": finding, "h1_user": "stickybugger", "platform": "HackerOne"}),
+        data=json.dumps({
+            "finding": finding,
+            "h1_user": "stickybugger",
+            "platform": "HackerOne",
+        }),
         content_type="application/json",
     )
     assert resp.status_code == 200
@@ -141,3 +146,49 @@ def test_api_report_handles_missing_optional_fields(client):
     )
     assert resp.status_code == 200
     assert "x.example.com" in resp.get_json()["report"]
+
+
+# --- Target Sanitization & Endpoints -----------------------------------------
+
+def test_is_safe_target_valid():
+    assert app_module.is_safe_target("example.com") is True
+    assert app_module.is_safe_target("sub.domain.example.co.uk") is True
+    assert app_module.is_safe_target("api-v2.cloud.internal") is True
+
+
+def test_is_safe_target_rejects_dangerous_input():
+    assert app_module.is_safe_target("; cat /etc/passwd") is False
+    assert app_module.is_safe_target("test.com | rm -rf") is False
+    assert app_module.is_safe_target("$(whoami).example.com") is False
+    assert app_module.is_safe_target("`id`.example.com") is False
+    assert app_module.is_safe_target("") is False
+
+
+def test_api_tools_endpoint(client):
+    resp = client.get("/api/tools")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert isinstance(data, dict)
+    assert "subfinder" in data
+    assert "httpx" in data
+
+
+def test_api_quickscan_requires_cname(client):
+    resp = client.post(
+        "/api/quickscan",
+        data=json.dumps({"sub": "sub.example.com"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_api_dns_unsupported_type(client):
+    resp = client.post(
+        "/api/dns",
+        data=json.dumps({"host": "example.com", "type": "INVALID_TYPE"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+

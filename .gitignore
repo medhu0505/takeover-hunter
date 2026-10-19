@@ -101,37 +101,38 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments & Secrets
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+.env.*
+!.env.example
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Binaries & executables
+*.exe
+*.dll
+*.so
+*.dylib
 
-# Rope project settings
-.ropeproject
+# State & logs
+*.log
+state.json
+*.sqlite3
 
-# mkdocs documentation
-/site
+# Node / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+.venv/
+venv/
